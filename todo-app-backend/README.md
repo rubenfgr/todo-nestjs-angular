@@ -206,7 +206,7 @@ optional: configure IDE to use ESLint and Prettier on save
       data?: T;
     }
 
-    export class ApiResponsesDto<T> {
+    export class ApiMultipleResponseDto<T> {
       @ApiProperty({ enum: ApiResponseStatus })
       status: ApiResponseStatus;
 
@@ -276,12 +276,12 @@ optional: configure IDE to use ESLint and Prettier on save
       dataDto: DataDto,
     ) =>
       applyDecorators(
-        ApiExtraModels(ApiResponsesDto, dataDto),
+        ApiExtraModels(ApiMultipleResponseDto, dataDto),
         ApiOkResponse({
           schema: {
             allOf: [
               {
-                $ref: getSchemaPath(ApiResponsesDto),
+                $ref: getSchemaPath(ApiMultipleResponseDto),
               },
               {
                 properties: {
@@ -334,7 +334,7 @@ optional: configure IDE to use ESLint and Prettier on save
       @ApiOkMultipleDataResponse(Todo)
       @ApiErrorDataResponse()
       @Get()
-      findAll(): ApiResponsesDto<Todo> {
+      findAll(): ApiMultipleResponseDto<Todo> {
         const todos = this.todosService.findAll();
         return {
           status: ApiResponseStatus.OK,
@@ -402,9 +402,9 @@ optional: configure IDE to use ESLint and Prettier on save
    ```
 
 7. check metrics on:
-    - http://localhost:3000/swagger-stats/ui
-    - http://localhost:3000/swagger-stats/metrics
-    - http://localhost:3000/swagger-stats/stats
+   - http://localhost:3000/swagger-stats/ui
+   - http://localhost:3000/swagger-stats/metrics
+   - http://localhost:3000/swagger-stats/stats
 
 ## Terminus (Health Check)
 
@@ -601,7 +601,7 @@ optional: configure IDE to use ESLint and Prettier on save
        @ApiOkMultipleDataResponse(Todo)
        @ApiErrorDataResponse()
        @Get()
-       async findAll(): Promise<ApiResponsesDto<Todo>> {
+       async findAll(): Promise<ApiMultipleResponseDto<Todo>> {
          const todos = await this.todosService.findAll();
          return {
            status: ApiResponseStatus.OK,
@@ -704,3 +704,527 @@ optional: configure IDE to use ESLint and Prettier on save
    ```
 
 3. test with postman
+
+## Patrón Criteria
+
+1. create criteria model and typeorm-criteria-transformer
+
+   ```ts
+   contexts/shared/models/criteria.ts:
+
+    export class Criteria {
+      @Transform((item) => {
+        if (Array.isArray(item.value)) {
+          return item.value.map((filter) => JSON.parse(filter));
+        }
+        return JSON.parse(item.value);
+      })
+      where?: Filter | Filter[];
+      @Transform((item) => {
+        if (Array.isArray(item.value)) {
+          return item.value.map((filter) => JSON.parse(filter));
+        }
+        return JSON.parse(item.value);
+      })
+      orWhere?: Filter | Filter[];
+      @Transform((item) => {
+        if (Array.isArray(item.value)) {
+          return item.value.map((order) => JSON.parse(order));
+        }
+        return JSON.parse(item.value);
+      })
+      order?: Order | Order[];
+      @IsNumber()
+      @IsOptional()
+      @Transform((item) => Number(item.value))
+      offset?: number;
+      @IsNumber()
+      @IsOptional()
+      @Transform((item) => Number(item.value))
+      limit?: number;
+      include?: string | string[];
+      select?: string | string[];
+      @Transform((item) => JSON.parse(item.value))
+      others?: { [key: string]: any };
+    }
+
+    export abstract class Filter {
+      field: string;
+      operator: FilterOperator;
+      value: string;
+    }
+
+    export abstract class Order {
+      orderBy: string;
+      type: OrderType;
+    }
+
+    export enum FilterOperator {
+      EQUAL = '=',
+      NOT_EQUAL = '!=',
+      GT = '>',
+      GT_OR_EQUAL = '>=',
+      LT = '<',
+      LT_OR_EQUAL = '<=',
+      CONTAINS = 'CONTAINS',
+      NOT_CONTAINS = 'NOT_CONTAINS',
+      START_WITH = 'START_WITH',
+      END_WITH = 'END_WITH',
+    }
+
+    export type OrderType = 'ASC' | 'DESC';
+   ```
+
+   ```ts
+   contexts/shared/typeorm-criteria-transformer.ts:
+
+   export const criteriaArgToArray = (arg: any | any[] | undefined): any[] => {
+     if (!arg) {
+       return undefined;
+     }
+     if (Array.isArray(arg)) {
+       return arg;
+     }
+     return [arg];
+   };
+
+   export const criteriaToTypeormQueryBuilder = <T>(
+     criteria: Criteria,
+     repository: Repository<any>,
+     alias: string,
+   ): SelectQueryBuilder<T> => {
+     const queryBuilder = repository.createQueryBuilder(alias);
+
+     FindOptionsUtils.joinEagerRelations(
+       queryBuilder,
+       queryBuilder.alias,
+       repository.metadata,
+     );
+
+     if (criteria.include) {
+       const relations = criteriaArgToArray(criteria.include);
+       relations.forEach((relation) => {
+         const relationSplit = relation.split('.');
+         if (relationSplit.length === 1) {
+           queryBuilder.leftJoinAndSelect(`${alias}.${relation}`, relation);
+         }
+         if (relationSplit.length === 2) {
+           queryBuilder.leftJoinAndSelect(relation, relationSplit[1]);
+         }
+       });
+     }
+     if (criteria.select) {
+       const selects = criteriaArgToArray(criteria.select);
+       selects.forEach((select) => {
+         queryBuilder.select(select);
+       });
+     }
+     if (criteria.order) {
+       const orders: Order[] = criteriaArgToArray(criteria.order);
+       orders.forEach((order) => {
+         queryBuilder.orderBy(`${alias}.${order.orderBy}`, order.type);
+       });
+     }
+     let isWherable = false;
+
+     if (criteria.where) {
+       const filters = criteriaArgToArray(criteria.where);
+       filters.forEach((filter: Filter) => {
+         const fields = filter.field.split('.');
+         const field = fields[fields.length - 1];
+         if (!isWherable) {
+           isWherable = true;
+           queryBuilder.where(getWhereByFilter(filter));
+           // queryBuilder.where(getWhereByFilter(filter));
+         } else {
+           queryBuilder.andWhere(getWhereByFilter(filter));
+         }
+       });
+     }
+     if (criteria.orWhere) {
+       const filters = criteriaArgToArray(criteria.orWhere);
+       filters.forEach((filter: Filter) => {
+         if (!isWherable) {
+           isWherable = true;
+           queryBuilder.where(getWhereByFilter(filter));
+         } else {
+           queryBuilder.orWhere(getWhereByFilter(filter));
+         }
+       });
+     }
+     if (criteria.offset) {
+       queryBuilder.skip(criteria.offset);
+     }
+
+     if (criteria.limit) {
+       queryBuilder.take(criteria.limit);
+     }
+
+     return queryBuilder;
+   };
+
+   export const getWhereByFilter = (filter: Filter) => {
+     let where = {};
+     const last = {};
+     const fieldSplit = filter.field.split('.');
+     if (filter.operator === FilterOperator.GT) {
+       // where[filter.field] = MoreThan(filter.value ?? '');
+       fieldSplit.forEach((field) => {
+         where = where[field];
+       });
+       where = MoreThan(filter.value ?? '');
+     }
+     if (filter.operator === FilterOperator.GT_OR_EQUAL) {
+       where[filter.field] = MoreThanOrEqual(filter.value ?? '');
+     }
+     if (filter.operator === FilterOperator.LT) {
+       where[filter.field] = LessThan(filter.value ?? '');
+     }
+     if (filter.operator === FilterOperator.LT_OR_EQUAL) {
+       where[filter.field] = LessThanOrEqual(filter.value ?? '');
+     }
+     if (filter.operator === FilterOperator.EQUAL) {
+       if (fieldSplit.length === 1) {
+         where[filter.field] = Equal(filter.value ?? '');
+       }
+       if (fieldSplit.length === 2) {
+         where[fieldSplit[0]] = { [fieldSplit[1]]: Equal(filter.value ?? '') };
+       }
+       if (fieldSplit.length === 3) {
+         where[fieldSplit[0]] = {
+           [fieldSplit[1]]: { [fieldSplit[2]]: Equal(filter.value ?? '') },
+         };
+       }
+     }
+     if (filter.operator === FilterOperator.CONTAINS) {
+       where[filter.field] = Like(`%${filter.value ?? ''}%`);
+     }
+     if (filter.operator === FilterOperator.NOT_CONTAINS) {
+       where[filter.field] = Not(Like(`%${filter.value ?? ''}%`));
+     }
+     if (filter.operator === FilterOperator.NOT_EQUAL) {
+       where[filter.field] = Not(Equal(filter.value ?? ''));
+     }
+     return where;
+   };
+
+   export const criteriaToTypeOrmManyOptions = (
+     criteria: Criteria,
+   ): FindManyOptions<any> => {
+     const options: FindManyOptions<any> = {
+       relations: criteriaArgToArray(criteria.include),
+       select: criteriaArgToArray(criteria.select),
+       order: criteriaOrderToTypeormOrder(criteriaArgToArray(criteria.order)),
+       where: criteriaFilterToTypeormWhere(criteriaArgToArray(criteria.where)),
+       withDeleted: false,
+     };
+
+     if (criteria.offset) {
+       options.skip = criteria.offset;
+     }
+
+     if (criteria.limit) {
+       options.take = criteria.offset + criteria.limit;
+     }
+
+     return options;
+   };
+
+   export const criteriaOrderToTypeormOrder = (
+     criteriaOrder: Order[] | undefined,
+   ): { [x: string]: 'ASC' | 'DESC' | 1 | -1 } => {
+     if (!criteriaOrder) return;
+     const typeormOrder = {};
+     criteriaOrder.forEach((order: Order) => {
+       if (order.type === 'ASC' || order.type === 'DESC') {
+         typeormOrder[order.orderBy] = order.type.toUpperCase();
+       }
+     });
+     return typeormOrder;
+   };
+
+   export const criteriaFilterToTypeormWhere = (
+     criteriaFilter: Filter[] | undefined,
+   ): FindOptionsWhere<any>[] => {
+     if (!criteriaFilter) return;
+     const typeormWhere: FindOptionsWhere<any>[] = [];
+     criteriaFilter.forEach((filter: Filter) => {
+       if (filter.operator === FilterOperator.GT) {
+         typeormWhere[filter.field] = MoreThan(filter.value ?? '');
+       }
+       if (filter.operator === FilterOperator.GT_OR_EQUAL) {
+         typeormWhere[filter.field] = MoreThanOrEqual(filter.value ?? '');
+       }
+       if (filter.operator === FilterOperator.LT) {
+         typeormWhere[filter.field] = LessThan(filter.value ?? '');
+       }
+       if (filter.operator === FilterOperator.LT_OR_EQUAL) {
+         typeormWhere[filter.field] = LessThanOrEqual(filter.value ?? '');
+       }
+       if (filter.operator === FilterOperator.EQUAL) {
+         typeormWhere[filter.field] = Equal(filter.value ?? '');
+       }
+       if (filter.operator === FilterOperator.CONTAINS) {
+         typeormWhere[filter.field] = Like(`%${filter.value ?? ''}%`);
+       }
+       if (filter.operator === FilterOperator.NOT_CONTAINS) {
+         typeormWhere[filter.field] = Not(Like(`%${filter.value ?? ''}%`));
+       }
+       if (filter.operator === FilterOperator.NOT_EQUAL) {
+         typeormWhere[filter.field] = Not(Equal(filter.value ?? ''));
+       }
+     });
+     return typeormWhere;
+   };
+   ```
+
+2. implement on service and controller in findAll endpoint
+
+   ```ts
+   contexts/todos/todos.service.ts:
+
+       async findAll(criteria: Criteria): Promise<{ total: number; data: Todo[] }> {
+     const data = await criteriaToTypeormQueryBuilder<Todo>(
+       criteria,
+       this.todoRepository,
+       'todos',
+     ).getMany();
+     const total = await criteriaToTypeormQueryBuilder<Todo>(
+       criteria,
+       this.todoRepository,
+       'todos',
+     ).getCount();
+     return { total, data };
+   }
+   ```
+
+   ```ts
+   contexts/todos/todos.controller.ts:
+
+     @ApiOkMultipleDataResponse(Todo)
+     @ApiErrorDataResponse()
+     @Get()
+     async findAll(@Query() criteria: Criteria): Promise<ApiResponsesDto<Todo>> {
+       console.log(criteria);
+       const { data, total } = await this.todosService.findAll(criteria);
+       return {
+         status: ApiResponseStatus.OK,
+         data,
+         total,
+       };
+     }
+   ```
+
+3. test with postman
+
+## Logs con winston
+
+1. install
+
+   ```sh
+     npm i --save winston
+     npm i --save winston-daily-rotate-file
+     npm i --save @elastic/ecs-winston-format
+   ```
+
+2. create custom loggin
+
+   ```ts
+    contexts/shared/loggin/winston-console.formater.ts:
+
+    export const formatWinstonConsole = (): winston.Logform.Format => {
+      return winston.format.combine(
+        winston.format.colorize(),
+        winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+        winston.format.ms(),
+        winston.format.printf((info) => getFormatedMessageConsole(info)),
+      );
+    };
+
+    const getFormatedMessageConsole = (info: any) => {
+      const {
+        timestamp,
+        level,
+        message,
+        'log.origin.file.name': logOriginFileName,
+        ms,
+        err,
+        ...args
+      } = info;
+
+      if (err) {
+        delete err.response;
+      }
+      return (
+        clc.cyanBright('[' + timestamp + '] ') +
+        level +
+        clc.yellow(' [' + logOriginFileName + '] ') +
+        message +
+        ' ' +
+        (err ? JSON.stringify(err) : '') +
+        (args ? JSON.stringify(args) : '') +
+        clc.yellow(' ' + ms)
+      );
+    };
+   ```
+
+   ```ts
+    contexts/shared/logging/logger-base.ts:
+
+    export abstract class LoggerBase {
+      protected logger: winston.Logger;
+      protected originFileName: string;
+
+      protected abstract createWinstonLogger(): winston.Logger;
+
+      /**
+      * Level 0
+      */
+      error(id: string, message: string, err: any): void {
+        this.logger.error(
+          LoggerBase.addDataToMessage(message, { id }),
+          LoggerBase.formatEcsData(this.originFileName, err),
+        );
+      }
+
+      /**
+      * Level 1
+      */
+      warn(message: string, data: any): void {
+        this.logger.warn(
+          LoggerBase.addDataToMessage(message, data),
+          LoggerBase.formatEcsData(this.originFileName),
+        );
+      }
+
+      /**
+      * Level 2
+      */
+      info(message: string, data: any): void {
+        this.logger.info(
+          LoggerBase.addDataToMessage(message, data),
+          LoggerBase.formatEcsData(this.originFileName),
+        );
+      }
+
+      /**
+      * Level 3
+      */
+      http(message: string, data: any): void {
+        this.logger.http(
+          LoggerBase.addDataToMessage(message, data),
+          LoggerBase.formatEcsData(this.originFileName),
+        );
+      }
+
+      /**
+      * Level 4
+      */
+      verbose(message: string, data: any): void {
+        this.logger.verbose(
+          LoggerBase.addDataToMessage(message, data),
+          LoggerBase.formatEcsData(this.originFileName),
+        );
+      }
+
+      /**
+      * Level 5
+      */
+      debug(message: string, data: any): void {
+        this.logger.debug(
+          LoggerBase.addDataToMessage(message, data),
+          LoggerBase.formatEcsData(this.originFileName),
+        );
+      }
+
+      /**
+      * Level 6
+      */
+      silly(message: string, data: any): void {
+        this.logger.silly(
+          LoggerBase.addDataToMessage(message, data),
+          LoggerBase.formatEcsData(this.originFileName),
+        );
+      }
+
+      private static addDataToMessage(message: string, data?: any) {
+        console.log(data);
+        if (data) {
+          return `${message} ${JSON.stringify(data)}`;
+        }
+        return message;
+      }
+
+      /**
+      * ECS Field Reference
+      * https://www.elastic.co/guide/en/ecs/8.1/ecs-field-reference.html
+      *
+      * Fields Selected:
+      * {
+      *     "@timestamp": "2020-04-01T12:00:00.000Z", // default base ECS
+      *     "message": "message", // default base ECS, added metadata at the end
+      *     "log.level": "error", // default base ECS
+      *     "log.origin.file.name": // added
+      *     "log.logger": // added
+      *     "agent.name": "app-logs-nest-example", // default base ECS, prefix_pattern in docker-compose.yml or .env
+      *
+      *     To add errors:
+      *     "err": // optional, ECS autoconverted from Error or Exception
+      * }
+      *
+      */
+      private static formatEcsData(originFileName: string, err?: any) {
+        const dataFormated = {
+          'log.origin.file.name': originFileName,
+        };
+
+        if (err) {
+          dataFormated['err'] = err;
+        }
+
+        return dataFormated;
+      }
+    }
+   ```
+
+   ```ts
+   contexts/shared/loggin/logger-app.ts:
+
+    export class LoggerApp extends LoggerBase {
+      constructor(originFileName: string) {
+        super();
+        super.originFileName = originFileName;
+        super.logger = this.createWinstonLogger();
+      }
+
+      protected createWinstonLogger() {
+        return winston.createLogger({
+          defaultMeta: { 'log.logger': 'appLogger' },
+          format: ecsFormat(),
+          transports: [
+            new winston.transports.DailyRotateFile({
+              level: 'silly',
+              dirname: 'logs/app',
+              filename: 'app-%DATE%.log',
+              datePattern: 'YYYY-MM-DD',
+              zippedArchive: true,
+              maxSize: '20m',
+              maxFiles: '14d',
+            }),
+            new winston.transports.Console({
+              level: 'silly',
+              format: formatWinstonConsole(),
+            }),
+          ],
+        });
+      }
+    }
+   ```
+
+3. add logging to global exception filter
+
+   ```ts
+   contexts/shared/exceptions/all-exception.filter.ts:
+
+   this.loggerApp.error(id, exception.message, exception);
+   ```
