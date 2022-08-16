@@ -9,7 +9,7 @@ export class TodosService {
   }
 
   findAll() {
-    return `This action returns all todos`;
+    return [`This action returns all todos`];
   }
 
   findOne(id: number) {
