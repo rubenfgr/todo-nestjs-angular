@@ -2,6 +2,17 @@
 
 optional: configure IDE to use ESLint and Prettier on save
 
+- [Todo App Backend](#todo-app-backend)
+  - [Installation and configuration](#installation-and-configuration)
+  - [Todo Entity CRUD](#todo-entity-crud)
+  - [Todo Entity and Dtos with validation](#todo-entity-and-dtos-with-validation)
+  - [Swagger (api documentation)](#swagger-api-documentation)
+  - [Terminus (Health Check)](#terminus-health-check)
+  - [TypeORM](#typeorm)
+  - [Global exception filter](#global-exception-filter)
+  - [Criteria/specification pattern](#criteriaspecification-pattern)
+  - [Logs con winston](#logs-con-winston)
+
 ## Installation and configuration
 
 1. npm i -g @nestjs/cli
@@ -705,7 +716,7 @@ optional: configure IDE to use ESLint and Prettier on save
 
 3. test with postman
 
-## Patrón Criteria
+## Criteria/specification pattern
 
 1. create criteria model and typeorm-criteria-transformer
 
