@@ -2,15 +2,12 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { TodosService } from './todos.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Todo } from './entities/todo.entity';
-import { Repository } from 'typeorm';
-
-export class TodoRepositoryMock {
-  public save(): void {}
-}
 
 describe('TodosService', () => {
   let service: TodosService;
-  let repository: Repository<Todo>;
+  const mockTodoRepository = {
+    createQueryBuilder: jest.fn(),
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -18,13 +15,12 @@ describe('TodosService', () => {
         TodosService,
         {
           provide: getRepositoryToken(Todo),
-          useClass: TodoRepositoryMock,
+          useValue: mockTodoRepository,
         },
       ],
     }).compile();
 
     service = module.get<TodosService>(TodosService);
-    repository = module.get(getRepositoryToken(Todo));
   });
 
   it('should be defined', () => {
