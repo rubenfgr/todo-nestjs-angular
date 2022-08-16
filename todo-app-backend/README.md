@@ -206,7 +206,7 @@ optional: configure IDE to use ESLint and Prettier on save
       data?: T;
     }
 
-    export class ApiMultipleResponseDto<T> {
+    export class ApiResponsesDto<T> {
       @ApiProperty({ enum: ApiResponseStatus })
       status: ApiResponseStatus;
 
@@ -276,12 +276,12 @@ optional: configure IDE to use ESLint and Prettier on save
       dataDto: DataDto,
     ) =>
       applyDecorators(
-        ApiExtraModels(ApiMultipleResponseDto, dataDto),
+        ApiExtraModels(ApiResponsesDto, dataDto),
         ApiOkResponse({
           schema: {
             allOf: [
               {
-                $ref: getSchemaPath(ApiMultipleResponseDto),
+                $ref: getSchemaPath(ApiResponsesDto),
               },
               {
                 properties: {
@@ -334,7 +334,7 @@ optional: configure IDE to use ESLint and Prettier on save
       @ApiOkMultipleDataResponse(Todo)
       @ApiErrorDataResponse()
       @Get()
-      findAll(): ApiMultipleResponseDto<Todo> {
+      findAll(): ApiResponsesDto<Todo> {
         const todos = this.todosService.findAll();
         return {
           status: ApiResponseStatus.OK,
@@ -402,9 +402,9 @@ optional: configure IDE to use ESLint and Prettier on save
    ```
 
 7. check metrics on:
-   - http://localhost:3000/swagger-stats/ui
-   - http://localhost:3000/swagger-stats/metrics
-   - http://localhost:3000/swagger-stats/stats
+    - http://localhost:3000/swagger-stats/ui
+    - http://localhost:3000/swagger-stats/metrics
+    - http://localhost:3000/swagger-stats/stats
 
 ## Terminus (Health Check)
 
@@ -601,7 +601,7 @@ optional: configure IDE to use ESLint and Prettier on save
        @ApiOkMultipleDataResponse(Todo)
        @ApiErrorDataResponse()
        @Get()
-       async findAll(): Promise<ApiMultipleResponseDto<Todo>> {
+       async findAll(): Promise<ApiResponsesDto<Todo>> {
          const todos = await this.todosService.findAll();
          return {
            status: ApiResponseStatus.OK,
@@ -653,3 +653,54 @@ optional: configure IDE to use ESLint and Prettier on save
        }
      }
    ```
+
+## Global exception filter
+
+1. create exception filter
+
+   ```ts
+   contexts/shared/all-exceptions.filter.ts:
+
+    @Catch()
+    export class AllExceptionsFilter<T> implements ExceptionFilter {
+      catch(exception: any, host: ArgumentsHost) {
+        const ctx = host.switchToHttp();
+        const response = ctx.getResponse<Response>();
+        const request = ctx.getRequest<Request>();
+
+        const responseBody: ApiSingleErrorResponseDto = {
+          status: ApiResponseStatus.KO,
+          message: 'Error interno en el servidor',
+          data: {
+            id: randomUUID(),
+            statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+            error: exception.message,
+          },
+        };
+
+        if (exception instanceof HttpException && exception.getResponse()) {
+          const exceptionResponse: any = exception.getResponse();
+          console.log(exceptionResponse.message);
+          if (Array.isArray(exceptionResponse.message)) {
+            responseBody.data.errors = exceptionResponse.message;
+            exceptionResponse.message = 'Datos inválidos';
+          }
+          responseBody.message = exceptionResponse.message;
+          responseBody.data.statusCode = exceptionResponse.statusCode;
+          responseBody.data.error = exceptionResponse.error;
+        }
+
+        return response.status(200).json(responseBody);
+      }
+    }
+   ```
+
+2. config in main.ts
+
+   ```ts
+   main.ts:
+
+   app.useGlobalFilters(new AllExceptionsFilter());
+   ```
+
+3. test with postman

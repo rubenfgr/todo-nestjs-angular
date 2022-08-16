@@ -6,10 +6,10 @@ import {
   getSchemaPath,
 } from '@nestjs/swagger';
 import {
-  ApiMultipleResponseDto,
+  ApiResponsesDto,
   ApiSingleErrorResponseDto,
   ApiSingleResponseDto,
-} from '../models/api-multiple-response.dto';
+} from '../models/api-responses.dto';
 
 export const ApiOkStringDataResponse = () =>
   applyDecorators(
@@ -74,12 +74,12 @@ export const ApiOkMultipleDataResponse = <DataDto extends Type<unknown>>(
   dataDto: DataDto,
 ) =>
   applyDecorators(
-    ApiExtraModels(ApiMultipleResponseDto, dataDto),
+    ApiExtraModels(ApiResponsesDto, dataDto),
     ApiOkResponse({
       schema: {
         allOf: [
           {
-            $ref: getSchemaPath(ApiMultipleResponseDto),
+            $ref: getSchemaPath(ApiResponsesDto),
           },
           {
             properties: {

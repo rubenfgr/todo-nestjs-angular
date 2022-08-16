@@ -7,6 +7,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import { TodosService } from './todos.service';
 import { CreateTodoDto } from './dto/create-todo.dto';
@@ -19,11 +20,12 @@ import {
   ApiOkNumberDataResponse,
   ApiOkStringDataResponse,
 } from '../shared/decorators/api-response-decorators';
+import { Criteria } from '../shared/models/criteria';
 import {
-  ApiMultipleResponseDto,
+  ApiResponsesDto,
   ApiResponseStatus,
   ApiSingleResponseDto,
-} from '../shared/models/api-multiple-response.dto';
+} from '../shared/models/api-responses.dto';
 
 @ApiTags('todos')
 @Controller('todos')
@@ -48,11 +50,13 @@ export class TodosController {
   @ApiOkMultipleDataResponse(Todo)
   @ApiErrorDataResponse()
   @Get()
-  async findAll(): Promise<ApiMultipleResponseDto<Todo>> {
-    const todos = await this.todosService.findAll();
+  async findAll(@Query() criteria: Criteria): Promise<ApiResponsesDto<Todo>> {
+    console.log(criteria);
+    const { data, total } = await this.todosService.findAll(criteria);
     return {
       status: ApiResponseStatus.OK,
-      data: todos,
+      data,
+      total,
     };
   }
 

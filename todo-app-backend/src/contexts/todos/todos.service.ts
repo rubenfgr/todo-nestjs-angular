@@ -5,6 +5,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Todo } from './entities/todo.entity';
 import { Repository } from 'typeorm';
 import { randomUUID } from 'crypto';
+import { Criteria } from '../shared/models/criteria';
+import { criteriaToTypeormQueryBuilder } from '../shared/models/typeorm-criteria-transformer';
 
 @Injectable()
 export class TodosService {
@@ -23,8 +25,18 @@ export class TodosService {
     return await this.todoRepository.save(todo);
   }
 
-  async findAll(): Promise<Todo[]> {
-    return await this.todoRepository.find();
+  async findAll(criteria: Criteria): Promise<{ total: number; data: Todo[] }> {
+    const data = await criteriaToTypeormQueryBuilder<Todo>(
+      criteria,
+      this.todoRepository,
+      'todos',
+    ).getMany();
+    const total = await criteriaToTypeormQueryBuilder<Todo>(
+      criteria,
+      this.todoRepository,
+      'todos',
+    ).getCount();
+    return { total, data };
   }
 
   async findOne(id: string): Promise<Todo> {

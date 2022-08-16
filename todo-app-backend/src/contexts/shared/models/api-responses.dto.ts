@@ -13,10 +13,10 @@ export class ApiErrorResponseDto {
   statusCode: number;
 
   @ApiPropertyOptional()
-  error: string;
+  error?: string;
 
   @ApiPropertyOptional()
-  errors: string[];
+  errors?: string[];
 }
 
 export class ApiSingleErrorResponseDto {
@@ -41,7 +41,7 @@ export class ApiSingleResponseDto<T> {
   data?: T;
 }
 
-export class ApiMultipleResponseDto<T> {
+export class ApiResponsesDto<T> {
   @ApiProperty({ enum: ApiResponseStatus })
   status: ApiResponseStatus;
 
