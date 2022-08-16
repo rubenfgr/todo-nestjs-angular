@@ -30,6 +30,25 @@ export const ApiOkStringDataResponse = () =>
     }),
   );
 
+export const ApiOkNumberDataResponse = () =>
+  applyDecorators(
+    ApiExtraModels(ApiSingleResponseDto),
+    ApiOkResponse({
+      schema: {
+        allOf: [
+          { $ref: getSchemaPath(ApiSingleResponseDto) },
+          {
+            properties: {
+              data: {
+                type: 'number',
+              },
+            },
+          },
+        ],
+      },
+    }),
+  );
+
 export const ApiOkSingleDataResponse = <DataDto extends Type<unknown>>(
   dataDto: DataDto,
 ) =>

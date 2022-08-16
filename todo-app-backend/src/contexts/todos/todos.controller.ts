@@ -16,6 +16,7 @@ import { Todo } from './entities/todo.entity';
 import {
   ApiErrorDataResponse,
   ApiOkMultipleDataResponse,
+  ApiOkNumberDataResponse,
   ApiOkStringDataResponse,
 } from '../shared/decorators/api-response-decorators';
 import {
@@ -32,66 +33,69 @@ export class TodosController {
   @ApiOkStringDataResponse()
   @ApiErrorDataResponse()
   @Post()
-  create(@Body() createTodoDto: CreateTodoDto): ApiSingleResponseDto<string> {
+  async create(
+    @Body() createTodoDto: CreateTodoDto,
+  ): Promise<ApiSingleResponseDto<string>> {
     console.log(createTodoDto);
-    const todoId = this.todosService.create(createTodoDto);
+    const todo = await this.todosService.create(createTodoDto);
     return {
       status: ApiResponseStatus.OK,
       message: 'La tarea se creo correctamente',
-      data: todoId,
+      data: todo.id,
     };
   }
 
   @ApiOkMultipleDataResponse(Todo)
   @ApiErrorDataResponse()
   @Get()
-  findAll(): ApiMultipleResponseDto<Todo> {
-    const todos = this.todosService.findAll();
+  async findAll(): Promise<ApiMultipleResponseDto<Todo>> {
+    const todos = await this.todosService.findAll();
     return {
       status: ApiResponseStatus.OK,
-      data: [],
+      data: todos,
     };
   }
 
   @ApiOkStringDataResponse()
   @ApiErrorDataResponse()
   @Get(':id')
-  findOne(
+  async findOne(
     @Param('id', ParseUUIDPipe) id: string,
-  ): ApiSingleResponseDto<string> {
+  ): Promise<ApiSingleResponseDto<Todo>> {
     console.log(id);
-    const todoId = this.todosService.findOne(+id);
+    const todo = await this.todosService.findOne(id);
     return {
       status: ApiResponseStatus.OK,
-      data: todoId,
+      data: todo,
     };
   }
 
   @ApiOkStringDataResponse()
   @ApiErrorDataResponse()
   @Patch(':id')
-  update(
+  async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateTodoDto: UpdateTodoDto,
-  ): ApiSingleResponseDto<string> {
+  ): Promise<ApiSingleResponseDto<string>> {
     updateTodoDto.id = id;
     console.log(updateTodoDto);
-    const todoId = this.todosService.update(+id, updateTodoDto);
+    const todo = await this.todosService.update(updateTodoDto);
     return {
       status: ApiResponseStatus.OK,
-      data: todoId,
+      data: todo.id,
     };
   }
 
-  @ApiOkStringDataResponse()
+  @ApiOkNumberDataResponse()
   @ApiErrorDataResponse()
   @Delete(':id')
-  remove(@Param('id', ParseUUIDPipe) id: string) {
+  async remove(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<ApiSingleResponseDto<number>> {
     console.log(id);
-    const todoId = this.todosService.remove(+id);
     return {
       status: ApiResponseStatus.OK,
-      data: todoId,
+      data: await this.todosService.remove(id),
     };
   }
 }
