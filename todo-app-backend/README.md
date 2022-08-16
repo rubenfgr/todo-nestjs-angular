@@ -385,4 +385,33 @@ optional: configure IDE to use ESLint and Prettier on save
       }
    ```
 
-6. add swagger stats
+6. add swagger stats and enableCors
+
+   ```sh
+     npm i swagger-stats
+   ```
+
+   ```ts
+   main.ts:
+
+    import * as swStats from 'swagger-stats';
+
+    app.enableCors();
+
+    app.use(swStats.getMiddleware({ uriPath: '/swagger-stats' }));
+   ```
+
+7. check metrics on:
+   - http://localhost:3000/swagger-stats/ui
+   - http://localhost:3000/swagger-stats/metrics
+   - http://localhost:3000/swagger-stats/stats
+
+## Terminus (Health Check)
+
+1. install
+   ```sh
+      npm i @nestjs/terminus
+   ```
+   ```
+
+   ```
