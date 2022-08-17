@@ -3,15 +3,15 @@
 optional: configure IDE to use ESLint and Prettier on save
 
 - [Todo App Backend](#todo-app-backend)
-  - [Installation and configuration](#installation-and-configuration)
-  - [Todo Entity CRUD](#todo-entity-crud)
-  - [Todo Entity and Dtos with validation](#todo-entity-and-dtos-with-validation)
-  - [Swagger (api documentation)](#swagger-api-documentation)
-  - [Terminus (Health Check)](#terminus-health-check)
-  - [TypeORM](#typeorm)
-  - [Global exception filter](#global-exception-filter)
-  - [Criteria/specification pattern](#criteriaspecification-pattern)
-  - [Logs con winston](#logs-con-winston)
+    - [Installation and configuration](#installation-and-configuration)
+    - [Todo Entity CRUD](#todo-entity-crud)
+    - [Todo Entity and Dtos with validation](#todo-entity-and-dtos-with-validation)
+    - [Swagger (api documentation)](#swagger-api-documentation)
+    - [Terminus (Health Check)](#terminus-health-check)
+    - [TypeORM](#typeorm)
+    - [Global exception filter](#global-exception-filter)
+    - [Criteria/specification pattern](#criteriaspecification-pattern)
+    - [Logs con winston](#logs-con-winston)
 
 ## Installation and configuration
 
@@ -90,12 +90,12 @@ optional: configure IDE to use ESLint and Prettier on save
    }
    ```
 
-4. add CreateTodoDto validations and test with postman
+4. add CreateTodoCommand validations and test with postman
 
    ```ts
-   create-todo.dto.ts:
+   create-todo.command.ts:
 
-   export class CreateTodoDto {
+   export class CreateTodoCommand {
       @IsString()
       title: string;
 
@@ -112,13 +112,13 @@ optional: configure IDE to use ESLint and Prettier on save
     }
    ```
 
-5. add UpdateTodoDto validations and test with postman
+5. add UpdateTodoCommand validations and test with postman
    ¿porque agregar el id sin validación? Para lanzar command handlers con CQRS, lo vemos mas adelante.
 
    ```ts
-   update-todo.dto.ts:
+   update-todo.command.ts:
 
-   export class UpdateTodoDto extends PartialType(CreateTodoDto) {
+   export class UpdateTodoCommand extends PartialType(CreateTodoCommand) {
       id: string;
     }
    ```
@@ -332,7 +332,7 @@ optional: configure IDE to use ESLint and Prettier on save
       @ApiOkStringDataResponse()
       @ApiErrorDataResponse()
       @Post()
-      create(@Body() createTodoDto: CreateTodoDto): ApiSingleResponseDto<string> {
+      create(@Body() createTodoDto: CreateTodoCommand): ApiSingleResponseDto<string> {
         console.log(createTodoDto);
         const todoId = this.todosService.create(createTodoDto);
         return {
@@ -372,7 +372,7 @@ optional: configure IDE to use ESLint and Prettier on save
       @Patch(':id')
       update(
         @Param('id', ParseUUIDPipe) id: string,
-        @Body() updateTodoDto: UpdateTodoDto,
+        @Body() updateTodoDto: UpdateTodoCommand,
       ): ApiSingleResponseDto<string> {
         updateTodoDto.id = id;
         console.log(updateTodoDto);
@@ -413,9 +413,9 @@ optional: configure IDE to use ESLint and Prettier on save
    ```
 
 7. check metrics on:
-   - http://localhost:3000/swagger-stats/ui
-   - http://localhost:3000/swagger-stats/metrics
-   - http://localhost:3000/swagger-stats/stats
+    - http://localhost:3000/swagger-stats/ui
+    - http://localhost:3000/swagger-stats/metrics
+    - http://localhost:3000/swagger-stats/stats
 
 ## Terminus (Health Check)
 
@@ -554,7 +554,7 @@ optional: configure IDE to use ESLint and Prettier on save
         private todoRepository: Repository<Todo>,
       ) {}
 
-      async create(createTodoDto: CreateTodoDto): Promise<Todo> {
+      async create(createTodoDto: CreateTodoCommand): Promise<Todo> {
         const todo = new Todo();
         todo.id = randomUUID();
         todo.title = createTodoDto.title;
@@ -572,7 +572,7 @@ optional: configure IDE to use ESLint and Prettier on save
         return await this.todoRepository.findOne({ where: { id } });
       }
 
-      async update(updateTodoDto: UpdateTodoDto): Promise<Todo> {
+      async update(updateTodoDto: UpdateTodoCommand): Promise<Todo> {
         const { id, ...data } = updateTodoDto;
         let todo = await this.findOne(id);
         todo = { ...todo, ...data };
@@ -598,7 +598,7 @@ optional: configure IDE to use ESLint and Prettier on save
        @ApiErrorDataResponse()
        @Post()
        async create(
-         @Body() createTodoDto: CreateTodoDto,
+         @Body() createTodoDto: CreateTodoCommand,
        ): Promise<ApiSingleResponseDto<string>> {
          console.log(createTodoDto);
          const todo = await this.todosService.create(createTodoDto);
@@ -639,7 +639,7 @@ optional: configure IDE to use ESLint and Prettier on save
        @Patch(':id')
        async update(
          @Param('id', ParseUUIDPipe) id: string,
-         @Body() updateTodoDto: UpdateTodoDto,
+         @Body() updateTodoDto: UpdateTodoCommand,
        ): Promise<ApiSingleResponseDto<string>> {
          updateTodoDto.id = id;
          console.log(updateTodoDto);

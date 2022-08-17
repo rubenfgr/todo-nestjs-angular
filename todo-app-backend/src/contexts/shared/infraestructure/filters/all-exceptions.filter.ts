@@ -8,7 +8,7 @@ import {
 import {
   ApiResponseStatus,
   ApiSingleErrorResponseDto,
-} from '../models/api-responses.dto';
+} from '../rest/api-responses.dto';
 import { randomUUID } from 'crypto';
 import { Response } from 'express';
 import { LoggerApp } from '../logging/logger-app';

@@ -9,37 +9,41 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { TodosService } from './todos.service';
-import { CreateTodoDto } from './dto/create-todo.dto';
-import { UpdateTodoDto } from './dto/update-todo.dto';
 import { ApiTags } from '@nestjs/swagger';
-import { Todo } from './entities/todo.entity';
+import { Todo } from './domain/todo.entity';
 import {
   ApiErrorDataResponse,
   ApiOkMultipleDataResponse,
   ApiOkNumberDataResponse,
   ApiOkStringDataResponse,
-} from '../shared/decorators/api-response-decorators';
-import { Criteria } from '../shared/models/criteria';
+} from '../shared/infraestructure/decorators/api-response-decorators';
 import {
   ApiResponsesDto,
   ApiResponseStatus,
   ApiSingleResponseDto,
-} from '../shared/models/api-responses.dto';
+} from '../shared/infraestructure/rest/api-responses.dto';
+import { CommandBus, QueryBus } from '@nestjs/cqrs';
+import { CreateTodoCommand } from './application/create/create-todo.command';
+import { FindTodosByCriteriaQuery } from './application/findByCriteria/find-todos-by-criteria.query';
+import { DeleteTodoCommand } from './application/delete/delete-todo.command';
+import { validate } from 'class-validator';
+import { UpdateTodoCommand } from './application/update/update-todo.command';
 
 @ApiTags('todos')
 @Controller('todos')
 export class TodosController {
-  constructor(private readonly todosService: TodosService) {}
+  constructor(
+    private readonly commandBus: CommandBus,
+    private readonly queryBus: QueryBus,
+  ) {}
 
   @ApiOkStringDataResponse()
   @ApiErrorDataResponse()
   @Post()
   async create(
-    @Body() createTodoDto: CreateTodoDto,
+    @Body() command: CreateTodoCommand,
   ): Promise<ApiSingleResponseDto<string>> {
-    console.log(createTodoDto);
-    const todo = await this.todosService.create(createTodoDto);
+    const todo = await this.commandBus.execute(command);
     return {
       status: ApiResponseStatus.OK,
       message: 'La tarea se creo correctamente',
@@ -50,9 +54,10 @@ export class TodosController {
   @ApiOkMultipleDataResponse(Todo)
   @ApiErrorDataResponse()
   @Get()
-  async findAll(@Query() criteria: Criteria): Promise<ApiResponsesDto<Todo>> {
-    console.log(criteria);
-    const { data, total } = await this.todosService.findAll(criteria);
+  async findAll(
+    @Query() query: FindTodosByCriteriaQuery,
+  ): Promise<ApiResponsesDto<Todo>> {
+    const { data, total } = await this.queryBus.execute(query);
     return {
       status: ApiResponseStatus.OK,
       data,
@@ -62,28 +67,13 @@ export class TodosController {
 
   @ApiOkStringDataResponse()
   @ApiErrorDataResponse()
-  @Get(':id')
-  async findOne(
-    @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<ApiSingleResponseDto<Todo>> {
-    console.log(id);
-    const todo = await this.todosService.findOne(id);
-    return {
-      status: ApiResponseStatus.OK,
-      data: todo,
-    };
-  }
-
-  @ApiOkStringDataResponse()
-  @ApiErrorDataResponse()
   @Patch(':id')
   async update(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() updateTodoDto: UpdateTodoDto,
+    @Body() command: UpdateTodoCommand,
   ): Promise<ApiSingleResponseDto<string>> {
-    updateTodoDto.id = id;
-    console.log(updateTodoDto);
-    const todo = await this.todosService.update(updateTodoDto);
+    command.id = id;
+    const todo = await this.commandBus.execute(command);
     return {
       status: ApiResponseStatus.OK,
       data: todo.id,
@@ -96,10 +86,12 @@ export class TodosController {
   async remove(
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<ApiSingleResponseDto<number>> {
-    console.log(id);
+    const deleteTodoCommand = new DeleteTodoCommand();
+    deleteTodoCommand.id = id;
+    await validate(deleteTodoCommand);
     return {
       status: ApiResponseStatus.OK,
-      data: await this.todosService.remove(id),
+      data: await this.commandBus.execute(deleteTodoCommand),
     };
   }
 }

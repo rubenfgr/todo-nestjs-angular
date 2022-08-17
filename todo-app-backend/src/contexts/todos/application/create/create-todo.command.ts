@@ -2,7 +2,7 @@ import { IsBoolean, IsNumber, IsString } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
-export class CreateTodoDto {
+export class CreateTodoCommand {
   @ApiProperty()
   @IsString()
   title: string;

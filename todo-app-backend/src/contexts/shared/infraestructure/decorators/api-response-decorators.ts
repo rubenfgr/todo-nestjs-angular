@@ -9,7 +9,7 @@ import {
   ApiResponsesDto,
   ApiSingleErrorResponseDto,
   ApiSingleResponseDto,
-} from '../models/api-responses.dto';
+} from '../rest/api-responses.dto';
 
 export const ApiOkStringDataResponse = () =>
   applyDecorators(

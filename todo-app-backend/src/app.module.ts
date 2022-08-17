@@ -1,9 +1,8 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { TodosModule } from './contexts/todos/todos.module';
 import { HealthModule } from './health/health.module';
 import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
+import { SharedModule } from './contexts/shared/shared.module';
 
 export const sqliteOptions: TypeOrmModuleOptions = {
   type: 'sqlite',
@@ -28,8 +27,9 @@ export const mysqlOptions: TypeOrmModuleOptions = {
       autoLoadEntities: true,
       synchronize: true,
     }),
+    SharedModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
+  controllers: [],
+  providers: [],
 })
 export class AppModule {}

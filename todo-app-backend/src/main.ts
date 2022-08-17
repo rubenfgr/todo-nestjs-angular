@@ -3,7 +3,7 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import * as swStats from 'swagger-stats';
-import { AllExceptionsFilter } from './contexts/shared/filters/all-exceptions.filter';
+import { AllExceptionsFilter } from './contexts/shared/infraestructure/filters/all-exceptions.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
