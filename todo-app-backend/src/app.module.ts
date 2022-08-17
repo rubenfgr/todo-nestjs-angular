@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { TodosModule } from './contexts/todos/todos.module';
 import { HealthModule } from './health/health.module';
 import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
-import { SharedModule } from './contexts/shared/shared.module';
 
 export const sqliteOptions: TypeOrmModuleOptions = {
   type: 'sqlite',
@@ -20,14 +19,13 @@ export const mysqlOptions: TypeOrmModuleOptions = {
 
 @Module({
   imports: [
-    TodosModule,
-    HealthModule,
     TypeOrmModule.forRoot({
       ...sqliteOptions,
       autoLoadEntities: true,
       synchronize: true,
     }),
-    SharedModule,
+    TodosModule,
+    HealthModule,
   ],
   controllers: [],
   providers: [],

@@ -1,6 +1,4 @@
 import {
-  EntityManager,
-  EntityTarget,
   Equal,
   FindOptionsUtils,
   LessThan,
@@ -13,26 +11,18 @@ import {
   SelectQueryBuilder,
 } from 'typeorm';
 import { Criteria, Filter, FilterOperator, Order } from '../../domain/criteria';
-import { Injectable } from '@nestjs/common';
-import { InjectEntityManager } from '@nestjs/typeorm';
 
-@Injectable()
 export class TypeormCriteriaTransformer<T> {
   private repository: Repository<T>;
   private alias: string;
 
-  constructor(
-    @InjectEntityManager()
-    private entityManager: EntityManager,
-  ) {}
-
   transform = (
-    entity: EntityTarget<T>,
+    repository: Repository<T>,
     criteria: Criteria,
   ): SelectQueryBuilder<T> => {
-    this.repository = this.entityManager.getRepository(entity);
+    this.repository = repository;
 
-    this.alias = this.entityManager.connection.getMetadata(entity).tableName;
+    this.alias = this.repository.metadata.tableName;
 
     const queryBuilder = this.repository.createQueryBuilder(this.alias);
 

@@ -7,10 +7,9 @@ import { CreateTodoHandler } from './application/create/create-todo.handler';
 import { DeleteTodoHandler } from './application/delete/delete-todo.handler';
 import { FindTodosByCriteriaHandler } from './application/findByCriteria/find-todos-by-criteria.handler';
 import { UpdateTodoHandler } from './application/update/update-todo.handler';
-import { SharedModule } from '../shared/shared.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Todo]), CqrsModule, SharedModule],
+  imports: [TypeOrmModule.forFeature([Todo]), CqrsModule],
   controllers: [TodosController],
   providers: [
     CreateTodoHandler,
@@ -18,5 +17,6 @@ import { SharedModule } from '../shared/shared.module';
     FindTodosByCriteriaHandler,
     UpdateTodoHandler,
   ],
+  exports: [],
 })
 export class TodosModule {}
